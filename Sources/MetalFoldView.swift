@@ -94,7 +94,6 @@ public final class MetalFoldView: MTKView, MTKViewDelegate {
             let possiblePaths = [
                 Bundle.main.bundlePath + "/Contents/Resources/FoldShaders.metal",
                 Bundle.main.bundlePath + "/FoldShaders.metal",
-                "/Users/ca5/Desktop/iphone-duo-macos-animation/Sources/FoldShaders.metal"
             ]
             for p in possiblePaths {
                 if let source = try? String(contentsOfFile: p, encoding: .utf8) {
@@ -120,6 +119,8 @@ public final class MetalFoldView: MTKView, MTKViewDelegate {
         self.pipelineState = try? dev.makeRenderPipelineState(descriptor: pipeDesc)
     }
     
+    public func clearImage() { currentTexture = nil }
+
     public func updateImage(_ cgImage: CGImage) {
         guard let dev = self.device else { return }
         

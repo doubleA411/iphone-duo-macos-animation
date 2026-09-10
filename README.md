@@ -1,74 +1,61 @@
 # macTilt
 
-The **macTilt** 3D clamshell fold animation for MacBooks driven by the physical lid angle sensor.
+A native macOS experiment that ties a desktop fold-and-frost effect to a MacBook's physical lid angle. Closing stretches the desktop upward while keeping the bottom edge anchored, narrows the upper sides, and progressively blurs the top. Opening reverses the effect; pausing the lid holds its position.
 
-> *"When the lid closes, the picture on its screen stays where it is in space while the hardware sweeps through it: the image frosts over and slips into black without ever changing its size."*
+Based on [lqSky7/iphone-duo-macos-animation](https://github.com/lqSky7/iphone-duo-macos-animation). This fork retains the upstream history and credits. It is an experimental adaptation, not an Apple product or an exact reproduction of Apple's animations.
 
-Rather than rendering inside a separate window, **the entire macOS display follows the animation in 3D space as you close your MacBook lid**.
+## Licensing status
 
-- **Normal MacBook Use**: When you are actively using your MacBook (lid is open), the app does **nothing** (overlay is completely hidden, zero CPU/GPU overhead, full click-through).
-- **Closing MacBook**: As you tilt the screen closed, the display freezes the screen and seamlessly folds **from up to down** toward the bottom keyboard hinge into the dark void.
-- **Opening MacBook**: Left idle / untouched for now.
-
----
-
-## Features
-
-- 📐 **Physical Lid Angle Sensing**: Real-time 60 Hz polling of Apple's internal lid angle sensor (`IOHIDDevice` Vendor `0x05AC`, Product `0x8104`, UsagePage `0x0020`, Usage `0x008A`).
-- 🌊 **Exact 1:1 Shaders**: Native Metal Shading Language implementation:
-  - 3D perspective projection with up-to-down clamshell hinge bend
-  - 5-tap separable Gaussian blur mip chain
-  - Glass tint and specular rim reflections
-  - Dark void horizon falloff
-- 🖥️ **Full-Screen Seamless Overlay**: Spans the entire screen at `.screenSaver` level. Completely click-through and invisible when open, freezing and folding into 3D space on tilt.
-- 🎛️ **Liquid Glass Desktop App**: Built with crisp native styling and Swift native `.glass` APIs (`.glassEffect()`, `.buttonStyle(.glass)`, `.buttonStyle(.glassProminent)`):
-  - **Menu Bar Display Toggle**: Option to hide or show the numerical lid sensor angle from the menu bar.
-  - **Screen Recording Permission Check**: Real-time permission status check and one-click authorization request.
-  - **Tilt Trigger Customization**: Customize exactly when the animation starts (e.g. 80°) and when full fold is reached (e.g. 3°).
-  - **Follow Responsiveness**: Tune the exponential smoothing physics.
-  - **Image Source**: Live Screen Capture (`ScreenCaptureKit`), Desktop Wallpaper, Bundled Artwork, or Custom Photo.
-  - **Test Preview Slider**: Scrub and preview the up-to-down closing fold interactively without moving your MacBook lid.
-- 🍸 **Menu Bar Extra**: Quick angle readout (e.g. `126°`), status monitoring, and settings shortcuts.
-- 🚀 **Automated Build & Install (`build.sh`)**: Increments the version number and build number automatically on each run and installs the `.app` directly to `/Applications`.
-
----
+The upstream repository did not include a license when this fork was prepared. **This repository is not yet offered under an open-source license.** Publishing a GitHub fork does not grant unrestricted reuse or redistribution rights. No MIT or other blanket license is asserted over upstream code or artwork. A fully licensed release requires permission from the upstream rights holders or replacement of their material.
 
 ## Requirements
 
-- macOS 14.0 or later (Apple Silicon or Intel MacBook with lid angle sensor)
-- Xcode Command Line Tools (`swiftc`, `xcrun metal`)
+- macOS 26 or newer, because the settings interface uses the current SwiftUI glass APIs.
+- Xcode command-line tools with the macOS 26 SDK.
+- A MacBook with an accessible lid-angle sensor and Metal support. Hardware access was verified on an M3 Pro MacBook Pro; other models are unverified.
+- Screen Recording permission for desktop capture. Wallpaper and bundled artwork are alternative sources.
 
----
+## Build and run
 
-## Building & Installing
-
-Run the automated build script:
-
-```bash
+```sh
 ./build.sh
+open build/macTilt.app
 ```
 
-Every time `./build.sh` is executed:
-1. It automatically increments the patch version (e.g. `1.0.0` → `1.0.1`) and build number (e.g. `1` → `2`) in `Info.plist`.
-2. Compiles the Metal shaders into `default.metallib`.
-3. Compiles the Swift application.
-4. Codesigns the app bundle ad-hoc.
-5. Installs the new version directly to `/Applications/macTilt.app`.
+The script builds locally and does not install into `/Applications`, remove other apps, download dependencies, or change privacy settings. The Metal shader is compiled by the system at launch.
 
----
+For a stable identity across local rebuilds, use an existing code-signing certificate:
 
-## Launching
-
-Open the installed application from `/Applications` or run:
-
-```bash
-open /Applications/macTilt.app
+```sh
+MACTILT_SIGNING_IDENTITY="Your Code Signing Certificate" ./build.sh
 ```
 
-The menu bar icon will display your current lid status. The Liquid Glass control panel allows you to customize the tilt thresholds and test the animation live!
+The default uses ad-hoc signing. Rebuilding an ad-hoc app can invalidate its previous Screen Recording grant. The project contains no signing keys or certificates.
 
----
+## Use
 
-## Credits & Acknowledgements
+Open the laptop icon in the menu bar for settings. Start and full-fold angles control the active range. The screen source, blur strength, and follow responsiveness can be adjusted there.
 
-- **Lid Angle Sensor**: Inspired by hardware reverse-engineering documented in [samhenrigold/LidAngleSensor](https://github.com/samhenrigold/LidAngleSensor) by [@samhenrigold](https://github.com/samhenrigold).
+Preview runs in a separate closable window, automatically ends after 15 seconds, and can be dismissed with Escape while macTilt is focused. The control panel uses normal window behavior. Quit macTilt from its menu to remove the effect.
+
+If Screen Recording is enabled in System Settings but capture fails, first quit and reopen the same app build. If the app's signing identity changed, remove its old entry and add the current `.app` under Privacy & Security → Screen & System Audio Recording. The permission indicator verifies an actual small ScreenCaptureKit capture.
+
+## Validation
+
+```sh
+./test.sh
+```
+
+Motion regression checks cover startup at a low angle, closing and opening, pauses in both directions, reversal, full opening, reset, wake, invalid samples, and custom thresholds. The shader was also rendered locally at four stages and inspected. Real-world lid timing, sleep/wake transitions, fullscreen apps, and multi-monitor behavior still need broader testing.
+
+## Limitations and privacy
+
+The app captures a desktop snapshot for the effect rather than continuously animating live windows. Captures are processed in memory; the app does not transmit them or save them to disk. The app polls the sensor at 60 Hz; the renderer pauses when inactive. This is not a zero-power background app.
+
+Normal macOS sleep behavior remains enabled. Animation cannot render while the display sleeps. On wake, old screen textures are cleared and wallpaper is used until a fresh capture is available. The fullscreen effect targets the built-in display. The supplied build is neither notarized nor distributed as a signed release.
+
+## Credits
+
+- Original app, UI, sensor integration, rendering infrastructure, and bundled artwork: [lqSky7](https://github.com/lqSky7/iphone-duo-macos-animation).
+- Sensor research credited by upstream: [samhenrigold/LidAngleSensor](https://github.com/samhenrigold/LidAngleSensor).
+- This fork: bidirectional motion and pause handling, preview safeguards, built-in display selection, capture verification, a revised shader, and a portable local build.

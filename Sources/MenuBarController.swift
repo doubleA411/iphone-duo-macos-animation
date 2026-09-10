@@ -111,6 +111,8 @@ public final class MenuBarController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
+        win.level = .normal
+        win.collectionBehavior = [.managed]
         win.center()
         win.titlebarAppearsTransparent = true
         win.titleVisibility = .hidden
@@ -137,6 +139,8 @@ public final class MenuBarController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
+        win.level = .normal
+        win.collectionBehavior = [.managed]
         win.center()
         win.titlebarAppearsTransparent = true
         win.titleVisibility = .hidden

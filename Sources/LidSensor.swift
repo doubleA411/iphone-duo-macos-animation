@@ -26,7 +26,7 @@ public final class LidSensor {
     private var isActivelyClosing: Bool = false
     private var hasPreArmedInThisMotion: Bool = false
     private var lastPreArmTime: CFTimeInterval = 0
-    private var stationaryFrames: Int = 0
+    private var motion = LidMotion()
     
     private init() {
         setupManager()
@@ -108,6 +108,21 @@ public final class LidSensor {
         }
     }
     
+    public func resetMotion() {
+        motion.reset()
+        isActivelyClosing = false
+        hasPreArmedInThisMotion = false
+        displayTurn = 0
+        targetTurn = 0
+        AppSettings.shared.isClosing = false
+        AppSettings.shared.isFoldActive = false
+    }
+
+    public func resumeOpening() {
+        resetMotion()
+        motion.beginOpening()
+    }
+
     private func tick() {
         let settings = AppSettings.shared
         
@@ -120,29 +135,14 @@ public final class LidSensor {
                 &hidReport,
                 &length
             )
-            if result == kIOReturnSuccess, length >= 3 {
+            if result == kIOReturnSuccess, length >= 3, (UInt16(hidReport[2]) << 8 | UInt16(hidReport[1])) <= 180 {
                 let rawValue = UInt16(hidReport[2]) << 8 | UInt16(hidReport[1])
                 let angle = Double(rawValue)
                 
-                // Track direction of movement and velocity
-                let delta = angle - previousRawAngle
-                let isMovingDownward = delta < -0.4
-                let isMovingUpward = delta > 0.6
-                
-                if isMovingDownward {
-                    isActivelyClosing = true
-                    stationaryFrames = 0
-                } else if isMovingUpward {
-                    isActivelyClosing = false
-                    hasPreArmedInThisMotion = false
-                    stationaryFrames = 0
-                } else {
-                    stationaryFrames += 1
-                    if stationaryFrames > 12 { // ~200ms of no downward movement
-                        isActivelyClosing = false
-                    }
-                }
-                
+                motion.update(angle: angle, startAngle: settings.startTiltAngle)
+                isActivelyClosing = motion.isClosing
+                if !isActivelyClosing { hasPreArmedInThisMotion = false }
+
                 // If lid is safely open, reset pre-arm latch and mark capture engine dormant
                 if angle >= settings.startTiltAngle || (!isActivelyClosing && angle >= settings.startTiltAngle - 10.0) {
                     hasPreArmedInThisMotion = false
@@ -174,12 +174,17 @@ public final class LidSensor {
                 currentRawAngle = angle
                 settings.currentLidAngle = angle
                 settings.isClosing = isActivelyClosing
+                settings.isFoldActive = motion.isFoldActive
                 settings.isSensorConnected = true
+            } else {
+                resetMotion()
+                settings.isSensorConnected = false
+                settings.sensorStatusMessage = "Lid sensor read failed; overlay cleared."
             }
         }
         
         // Compute target turn: only when closing and below startTiltAngle
-        targetTurn = settings.normalizedTurn(for: currentRawAngle, isLidClosing: isActivelyClosing)
+        targetTurn = settings.normalizedTurn(for: currentRawAngle, isLidClosing: motion.isFoldActive)
         
         // Follow easing physics
         let now = CACurrentMediaTime()

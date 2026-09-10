@@ -135,11 +135,11 @@ public struct LiquidGlassControlPanel: View {
             return "Using Mac (Idle)"
         } else if settings.currentLidAngle <= settings.endTiltAngle {
             return "Lid Closed"
-        } else if settings.isClosing {
+        } else if settings.isFoldActive {
             let pct = Int(settings.normalizedTurn(for: settings.currentLidAngle, isLidClosing: true) * 100)
-            return "Closing (\(pct)%)"
+            return "\(settings.isClosing ? "Closing" : "Opening") (\(pct)%)"
         } else {
-            return "Opening (Idle)"
+            return "Using Mac (Idle)"
         }
     }
     
@@ -239,12 +239,12 @@ public struct LiquidGlassControlPanel: View {
                     .fill(Color.green)
                     .frame(width: 8, height: 8)
                 
-                Text("Zero Idle Battery Impact")
+                Text("Rendering Pauses While Idle")
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.green)
                 
-                InfoButton("Battery Efficiency", content: "macTilt is 100% dormant with 0 Hz background polling during normal use. Capture is pre-armed exclusively in the millisecond you start closing your display (~95°). Metal rendering is paused until the clamshell fold begins.")
+                InfoButton("Battery Efficiency", content: "The lid sensor is polled at 60 Hz. Metal rendering is paused while the lid is open. A screen snapshot is requested as the lid begins closing.")
                 
                 Spacer()
                 
@@ -425,7 +425,7 @@ public struct LiquidGlassControlPanel: View {
                     Text("Preview Animation")
                         .font(.subheadline)
                     
-                    InfoButton("Interactive Preview", content: "Scrub and inspect the fold on your screen without physically moving the lid.")
+                    InfoButton("Interactive Preview", content: "Preview in a separate window. Close it or press Escape to exit. Automatically closes after 15 seconds.")
                     
                     Spacer()
                     

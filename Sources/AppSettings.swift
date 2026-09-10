@@ -75,16 +75,27 @@ public final class AppSettings: ObservableObject {
     }
     
     // MARK: - Real-time State
+    private var previewTimeout: Timer?
     @Published public var isTestModeActive: Bool = false {
         didSet {
-            if !isTestModeActive {
+            previewTimeout?.invalidate()
+            LidSensor.shared.resetMotion()
+            OverlayWindowController.shared.stopOverlay()
+            if isTestModeActive {
+                previewTimeout = Timer(timeInterval: 15, repeats: false) { [weak self] _ in
+                    self?.isTestModeActive = false
+                }
+                RunLoop.main.add(previewTimeout!, forMode: .common)
+            } else {
                 testTurnValue = 0.0
+                OverlayWindowController.shared.closePreview()
             }
         }
     }
     @Published public var testTurnValue: Double = 0.0
     @Published public var currentLidAngle: Double = 120.0
     @Published public var isSensorConnected: Bool = false
+    @Published public var isFoldActive: Bool = false
     @Published public var isClosing: Bool = false
     @Published public var sensorStatusMessage: String = "Initializing sensor..."
     @Published public var hasScreenRecordingPermission: Bool = false

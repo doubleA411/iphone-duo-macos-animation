@@ -15,38 +15,7 @@ public final class ScreenCapture {
     
     /// Comprehensive async verification using both CoreGraphics and ScreenCaptureKit
     public func verifyPermissionAsync() async -> Bool {
-        if CGPreflightScreenCaptureAccess() {
-            return true
-        }
-        
-        // Probe via ScreenCaptureKit: if we can list external windows, permission is active
-        do {
-            let content: SCShareableContent
-            if #available(macOS 14.4, *) {
-                content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            } else {
-                content = try await SCShareableContent.current
-            }
-            let currentPID = NSRunningApplication.current.processIdentifier
-            let otherWindows = content.windows.filter { $0.owningApplication?.processID != currentPID }
-            if !otherWindows.isEmpty {
-                return true
-            }
-            if !content.displays.isEmpty {
-                // Test capturing a small 1x1 test frame
-                let filter = SCContentFilter(display: content.displays[0], excludingWindows: [])
-                let config = SCStreamConfiguration()
-                config.width = 2
-                config.height = 2
-                if let _ = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) {
-                    return true
-                }
-            }
-        } catch {
-            return false
-        }
-        
-        return false
+        return await captureLiveScreen(probe: true) != nil
     }
     
     /// Request screen recording permission from macOS
@@ -81,7 +50,7 @@ public final class ScreenCapture {
         
         switch settings.imageSourceMode {
         case .liveCapture:
-            if await verifyPermissionAsync(), let img = await captureLiveScreen() {
+            if let img = await captureLiveScreen() {
                 return img
             }
             // Fallback if permission not granted or capture failed
@@ -104,7 +73,7 @@ public final class ScreenCapture {
     }
     
     /// Live display capture using ScreenCaptureKit
-    public func captureLiveScreen() async -> CGImage? {
+    public func captureLiveScreen(probe: Bool = false) async -> CGImage? {
         do {
             let content: SCShareableContent
             if #available(macOS 14.4, *) {
@@ -112,22 +81,23 @@ public final class ScreenCapture {
             } else {
                 content = try await SCShareableContent.current
             }
-            guard let display = content.displays.first else { return nil }
+            guard let display = content.displays.first(where: { CGDisplayIsBuiltin($0.displayID) != 0 }) else { return nil }
             
             // Exclude our own app's windows
             let currentAppPID = NSRunningApplication.current.processIdentifier
             let excludedWindows = content.windows.filter { $0.owningApplication?.processID == currentAppPID }
             
-            let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+            let scale = NSScreen.screens.first(where: { ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == display.displayID })?.backingScaleFactor ?? 2.0
             let filter = SCContentFilter(display: display, excludingWindows: excludedWindows)
             let config = SCStreamConfiguration()
-            config.width = Int(Double(display.width) * scale)
-            config.height = Int(Double(display.height) * scale)
+            config.width = probe ? 2 : Int(Double(display.width) * scale)
+            config.height = probe ? 2 : Int(Double(display.height) * scale)
             config.showsCursor = true
             config.pixelFormat = kCVPixelFormatType_32BGRA
             config.colorSpaceName = CGColorSpace.sRGB
             
-            return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            return image
         } catch {
             print("[ScreenCapture] ScreenCaptureKit error: \(error)")
             return nil
@@ -155,7 +125,6 @@ public final class ScreenCapture {
             Bundle.main.bundlePath + "/Contents/Resources/default.png",
             Bundle.main.bundlePath + "/Resources/default.png",
             CommandLine.arguments[0].split(separator: "/").dropLast().joined(separator: "/") + "/Resources/default.png",
-            "/Users/ca5/Desktop/iphone-duo-macos-animation/Resources/default.png"
         ]
         for path in fallbackPaths {
             if let img = NSImage(contentsOfFile: path),

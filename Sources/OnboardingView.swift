@@ -43,8 +43,8 @@ public struct OnboardingView: View {
                 FeatureRow(
                     icon: "battery.100.bolt",
                     iconColor: .green,
-                    title: "Zero Idle Battery Impact",
-                    subtitle: "100% dormant during normal use with zero background polling. Captures are pre-armed strictly during physical closing motion."
+                    title: "Rendering Pauses While Idle",
+                    subtitle: "The sensor polls at 60 Hz. Screen capture and rendering activate during a closing session."
                 )
                 
                 FeatureRow(

@@ -1,4 +1,6 @@
-build/
 .DS_Store
-*.air
-*.metallib
+build/
+.build/
+*.app/
+*.dmg
+capture-status.json
