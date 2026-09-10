@@ -2,6 +2,10 @@
 
 A native macOS experiment that ties a desktop fold-and-frost effect to a MacBook's physical lid angle. Closing stretches the desktop upward while keeping the bottom edge anchored, narrows the upper sides, and progressively blurs the top. Opening reverses the effect; pausing the lid holds its position.
 
+## Download
+
+Download the [macTilt v0.1.0 DMG](https://github.com/doubleA411/iphone-duo-macos-animation/releases/tag/v0.1.0) for a drag-to-Applications install. This build is signed with a local development certificate and is not Apple-notarized, so macOS may show a Gatekeeper warning. Screen Recording permission is still required after installation.
+
 Based on [lqSky7/iphone-duo-macos-animation](https://github.com/lqSky7/iphone-duo-macos-animation). This fork retains the upstream history and credits. It is an experimental adaptation, not an Apple product or an exact reproduction of Apple's animations.
 
 ## Licensing status
